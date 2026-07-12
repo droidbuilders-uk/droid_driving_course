@@ -771,32 +771,29 @@ void setMatrixMessage(String msg, int r, int g, int b) {
 }
 
 void updateMatrixText() {
-  int textPixelWidth = matrixText.length() * 6; // Average 6 pixels per character width
-
-  // If text fits on screen, center it and don't scroll
-  if (textPixelWidth <= matrix.width()) {
-    matrix.fillScreen(0);
-    int center_x = (matrix.width() - textPixelWidth) / 2;
-    if (center_x < 0) center_x = 0;
-    matrix.setCursor(center_x, 0);
-    matrix.print(matrixText);
-    matrix.show();
-    return;
-  }
-
   unsigned long currentMillis = millis();
   if (currentMillis - lastMatrixUpdate >= 50) { // scroll speed
     lastMatrixUpdate = currentMillis;
-    matrix.fillScreen(0);
-    matrix.setCursor(matrixTextX, 0);
-    matrix.print(matrixText);
-    matrix.show();
     
-    matrixTextX--;
-    // Reset position if text scrolled past screen
-    if (matrixTextX < -textPixelWidth) {
-      matrixTextX = matrix.width();
+    int textPixelWidth = matrixText.length() * 6; // Average 6 pixels per character width
+    matrix.fillScreen(0);
+
+    // If text fits on screen, center it and don't scroll
+    if (textPixelWidth <= matrix.width()) {
+      int center_x = (matrix.width() - textPixelWidth) / 2;
+      if (center_x < 0) center_x = 0;
+      matrix.setCursor(center_x, 0);
+      matrix.print(matrixText);
+    } else {
+      matrix.setCursor(matrixTextX, 0);
+      matrix.print(matrixText);
+      matrixTextX--;
+      // Reset position if text scrolled past screen
+      if (matrixTextX < -textPixelWidth) {
+        matrixTextX = matrix.width();
+      }
     }
+    matrix.show();
   }
 }
 #endif
