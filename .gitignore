@@ -73,3 +73,5 @@ venv/
 
 # PlatformIO
 .pio/
+
+config.csv

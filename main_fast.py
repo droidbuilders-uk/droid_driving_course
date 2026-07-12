@@ -241,12 +241,22 @@ async def refresh_all(db: Session = Depends(db_v2.get_db)):
         return JSONResponse(status_code=400, content={"status": "error", "message": "Missing configuration"})
         
     try:
-        url = f"{config['site_base']}/api/getalldroids"
+        url = f"{config['site_base']}/api/getmembers"
         headers = {"Authorization": f"Bearer {config['api_key']}", "Accept": "application/json"}
         r = requests.get(url, headers=headers)
+        if r.status_code != 200:
+            return JSONResponse(status_code=400, content={"status": "error", "message": f"MOT API returned {r.status_code}"})
         data = r.json()
+        if isinstance(data, str):
+            import json
+            data = json.loads(data)
+            
+        import os
+        os.makedirs("static/members", exist_ok=True)
+        os.makedirs("static/droids", exist_ok=True)
         
         for member in data:
+            member['new'] = False
             database.add_member(member)
             # Download member image
             img_url = f"{config['site_base']}/api/getmemberimage/{member['id']}?api_token={config['api_key']}"
