@@ -80,6 +80,20 @@ mqtt.set_session(course_session)
 mqtt.start()
 
 # --- Helper Functions ---
+def get_latest_firmware_versions():
+    import os
+    versions = {}
+    if not os.path.exists('firmware_binaries'):
+        return versions
+    for f in os.listdir('firmware_binaries'):
+        if f.endswith('.bin'):
+            parts = f[:-4].split('_', 1)
+            if len(parts) == 2:
+                device_type, version = parts
+                if device_type not in versions or version > versions[device_type]:
+                    versions[device_type] = version
+    return versions
+
 def get_site_config(db: Session):
     return {
         'api_key': db_v2.get_config(db, 'mot_api_key').config_value if db_v2.get_config(db, 'mot_api_key') else None,
@@ -168,7 +182,7 @@ def display(cmd: str, db: Session = Depends(db_v2.get_db)):
         return {
             "sensors": mqtt.get_diagnostics(),
             "broker_connected": mqtt.client.is_connected() if mqtt.client else False,
-            "latest_version": "2.0.1"
+            "latest_versions": get_latest_firmware_versions()
         }
     return {"status": "ok"}
 
@@ -367,31 +381,36 @@ async def flush_gates():
 async def run_ota_upgrade(ip: str, sensor_type: str):
     logger.info(f"Starting OTA Upgrade for IP {ip} (Type: {sensor_type})")
     try:
-        # Determine the directory based on type
-        project_dir = "Arduino/Bump_Sensor"
-        if sensor_type == "timer":
-            project_dir = "Arduino/Timer"
-            
-        logger.info(f"Compiling firmware in {project_dir}...")
-        # Compile using platformio
-        compile_res = subprocess.run(
-            ["platformio", "run", "-d", project_dir],
-            capture_output=True, text=True
-        )
-        if compile_res.returncode != 0:
-            logger.error(f"PlatformIO Compilation failed: {compile_res.stderr}")
+        import os
+        # Find the latest binary for this type
+        versions = get_latest_firmware_versions()
+        latest_ver = versions.get(sensor_type)
+        if not latest_ver:
+            logger.error(f"No firmware found for type {sensor_type} in firmware_binaries/")
             return
             
-        logger.info(f"Uploading firmware to {ip} via OTA...")
-        # Upload using platformio target
+        bin_path = f"firmware_binaries/{sensor_type}_{latest_ver}.bin"
+        if not os.path.exists(bin_path):
+            logger.error(f"Firmware binary not found: {bin_path}")
+            return
+            
+        # Determine the correct espota.py based on device type
+        home_dir = os.path.expanduser("~")
+        if sensor_type == "timer":
+            espota_path = os.path.join(home_dir, ".platformio/packages/framework-arduinoespressif32/tools/espota.py")
+        else:
+            espota_path = os.path.join(home_dir, ".platformio/packages/framework-arduinoespressif8266/tools/espota.py")
+            
+        logger.info(f"Uploading {bin_path} to {ip} via espota.py...")
+        
         upload_res = subprocess.run(
-            ["platformio", "run", "-d", project_dir, "--target", "upload", "--upload-port", ip],
+            ["python", espota_path, "-i", ip, "-f", bin_path],
             capture_output=True, text=True
         )
         if upload_res.returncode == 0:
             logger.info(f"OTA Upgrade to {ip} succeeded!")
         else:
-            logger.error(f"OTA Upload failed: {upload_res.stderr}")
+            logger.error(f"OTA Upload failed: {upload_res.stderr} \n {upload_res.stdout}")
     except Exception as e:
         logger.error(f"Error during OTA upgrade: {e}")
 

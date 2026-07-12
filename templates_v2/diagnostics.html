@@ -219,12 +219,13 @@
                     badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span><span class="text-xs font-bold text-rose-500 uppercase tracking-widest">MQTT Status: Disconnected</span>`;
                 }
 
-                const latestVer = data.latest_version || "2.0.1";
+                const latestVersions = data.latest_versions || {};
                 const grid = document.getElementById('sensor-grid');
                 grid.innerHTML = Object.entries(data.sensors).map(([id, info]) => {
                     const lastSeen = Math.floor((Date.now() - info.last_seen * 1000) / 1000);
                     const isOnline = lastSeen < 30;
-                    const needsUpgrade = isOnline && info.version !== latestVer && info.ip;
+                    const typeLatestVer = latestVersions[info.type];
+                    const needsUpgrade = isOnline && typeLatestVer && info.version !== typeLatestVer && info.ip;
                     return `
                     <div class="bg-black/30 border border-slate-800 p-4 flex flex-col gap-3">
                         <div class="flex justify-between items-center">
