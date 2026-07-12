@@ -5,3 +5,10 @@ pyserial
 requests
 future
 pygame
+fastapi
+uvicorn
+sqlalchemy
+jinja2
+pydantic
+websockets
+platformio

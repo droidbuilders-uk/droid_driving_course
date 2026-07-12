@@ -60,9 +60,15 @@ graph TD
 ## 🛠️ Installation & Running
 
 ### 1. Environment Setup
-Install the necessary system dependencies, then run the environment script to create the Python virtual environment and install pip requirements:
+Install the necessary system dependencies (build tools, python headers, and SDL2 libraries required to compile dependencies like Pygame), then run the environment script to create the Python virtual environment and install pip requirements:
 
 ```bash
+# Install system packages (Debian/Ubuntu/Raspberry Pi OS)
+sudo apt update
+sudo apt install -y build-essential python3-dev \
+    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+    libfreetype6-dev libportmidi-dev libjpeg-dev
+
 # Set up virtual environment and dependencies
 chmod +x setup_env.sh
 ./setup_env.sh
