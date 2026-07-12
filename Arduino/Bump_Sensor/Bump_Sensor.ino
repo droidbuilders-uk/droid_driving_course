@@ -18,7 +18,7 @@ SoftwareSerial softSerial(/*rx =*/10, /*tx =*/4);
 
 ADC_MODE(ADC_VCC);
 
-const char firmware_version[] = "2.0.1";
+const char firmware_version[] = "2.0.2";
 const char sensor_type[] = "bump";
 
 DFRobotDFPlayerMini myDFPlayer;
@@ -282,7 +282,10 @@ void loop() {
   int packetSize = Udp.parsePacket();
   if (packetSize) {
     // read the packet into packetBufffer
-    Udp.read(packetBuffer, 64);
+    int len = Udp.read(packetBuffer, 63);
+    if (len > 0) {
+      packetBuffer[len] = '\0';
+    }
     Serial.println("UDP Broadcast received. Contents:");
     Serial.println(packetBuffer);
     if (strcmp(packetBuffer, "rainbow") == 0) {

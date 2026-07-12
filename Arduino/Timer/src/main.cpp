@@ -131,6 +131,7 @@ void setup() {
   }
   
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false); // Prevent ESP32 from dropping UDP broadcasts due to modem sleep!
   WiFiMulti.addAP(ssid, pass);
 
   // allow reuse (if server supports it)
