@@ -12,6 +12,24 @@ logger = logging.getLogger(__name__)
 def init_db():
     Base.metadata.create_all(bind=engine)
     logger.info("Database V2 initialized")
+    
+    # Load initial config from CSV if available and table is empty
+    db = SessionLocal()
+    try:
+        import csv
+        import os
+        if db.query(Config).count() == 0 and os.path.exists('db/config.csv'):
+            logger.info("Loading initial config values from db/config.csv")
+            with open('db/config.csv', 'rt') as fin:
+                dr = csv.DictReader(fin)
+                for row in dr:
+                    config = Config(config_name=row['config_name'], config_value=row['config_value'])
+                    db.add(config)
+                db.commit()
+    except Exception as e:
+        logger.error(f"Error loading initial config: {e}")
+    finally:
+        db.close()
 
 def get_db():
     db = SessionLocal()
