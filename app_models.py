@@ -1,6 +1,12 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship, DeclarativeBase
-from pydantic import BaseModel, ConfigDict
+try:
+    from pydantic import BaseModel, ConfigDict
+    HAS_PYDANTIC_V2 = True
+except ImportError:
+    from pydantic import BaseModel
+    ConfigDict = None
+    HAS_PYDANTIC_V2 = False
 from datetime import datetime
 from typing import Optional, List
 
@@ -82,7 +88,11 @@ class DroidBase(BaseModel):
 
 class DroidSchema(DroidBase):
     droid_uid: int
-    model_config = ConfigDict(from_attributes=True)
+    if HAS_PYDANTIC_V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
 
 class MemberBase(BaseModel):
     name: str
@@ -91,12 +101,20 @@ class MemberBase(BaseModel):
 
 class MemberSchema(MemberBase):
     member_uid: int
-    model_config = ConfigDict(from_attributes=True)
+    if HAS_PYDANTIC_V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
 
 class PenaltySchema(BaseModel):
     gate_id: int
     timestamp: datetime
-    model_config = ConfigDict(from_attributes=True)
+    if HAS_PYDANTIC_V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
 
 class RunSchema(BaseModel):
     id: int
@@ -105,4 +123,8 @@ class RunSchema(BaseModel):
     member_uid: int
     final_time: Optional[int] = None
     num_penalties: int = 0
-    model_config = ConfigDict(from_attributes=True)
+    if HAS_PYDANTIC_V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True

@@ -94,31 +94,31 @@ async def get_sw():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/diagnostics", response_class=HTMLResponse)
 async def read_diagnostics(request: Request):
-    return templates.TemplateResponse(request=request, name="diagnostics.html")
+    return templates.TemplateResponse("diagnostics.html", {"request": request})
 
 @app.get("/scoreboard", response_class=HTMLResponse)
 async def read_scoreboard(request: Request):
-    return templates.TemplateResponse(request=request, name="scoreboard.html")
+    return templates.TemplateResponse("scoreboard.html", {"request": request})
 
 @app.get("/results", response_class=HTMLResponse)
 async def read_results(request: Request):
-    return templates.TemplateResponse(request=request, name="results.html")
+    return templates.TemplateResponse("results.html", {"request": request})
 
 @app.get("/today", response_class=HTMLResponse)
 async def read_today(request: Request):
-    return templates.TemplateResponse(request=request, name="today.html")
+    return templates.TemplateResponse("today.html", {"request": request})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def read_admin(request: Request):
-    return templates.TemplateResponse(request=request, name="admin.html")
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.get("/contenders", response_class=HTMLResponse)
 async def read_contenders(request: Request):
-    return templates.TemplateResponse(request=request, name="contenders.html")
+    return templates.TemplateResponse("contenders.html", {"request": request})
 
 # --- API & Action Routes ---
 
