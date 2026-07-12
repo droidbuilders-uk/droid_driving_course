@@ -1,13 +1,14 @@
 [Unit]
-Description=R2Course
-After=network.service
+Description=R2Course FastAPI Controller Service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 User=pi
 WorkingDirectory=/home/pi/droid_driving_course
-ExecStart=/home/pi/droid_driving_course/main.py
-Restart=true
+ExecStart=/home/pi/droid_driving_course/venv/bin/python3 /home/pi/droid_driving_course/main_fast.py
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
