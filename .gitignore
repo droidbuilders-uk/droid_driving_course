@@ -68,3 +68,6 @@ logs/*.log
 .idea/
 .*.swp
 config.h
+
+
+venv/

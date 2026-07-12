@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droid Course - Dashboard</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @theme {
+            --font-sans: 'Exo 2', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#05070a] text-slate-100 min-h-screen font-sans antialiased p-8 md:p-16">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="mb-16">
+            <h1 class="text-5xl md:text-6xl font-black tracking-tighter text-white mb-2">
+                DROID CONTROL <span class="text-teal-500 font-light">V2</span>
+            </h1>
+            <p class="text-slate-500 text-lg font-medium">Course Management System</p>
+        </header>
+
+        <!-- Main Navigation -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Scoreboard -->
+            <a href="/scoreboard" class="group bg-slate-900 border-l-4 border-teal-500 p-8 hover:bg-slate-800 transition-all shadow-xl">
+                <h2 class="text-2xl font-black mb-2 text-white uppercase">Scoreboard</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Live race display and timer for the main course screen.</p>
+            </a>
+
+            <!-- Admin Panel -->
+            <a href="/admin" class="group bg-slate-900 border-l-4 border-amber-500 p-8 hover:bg-slate-800 transition-all shadow-xl">
+                <h2 class="text-2xl font-black mb-2 text-white uppercase">Admin Console</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Control runs, register builders, and manage the database.</p>
+            </a>
+
+            <!-- Manual Registration -->
+            <a href="/contenders" class="group bg-slate-900 border-l-4 border-teal-500 p-8 hover:bg-slate-800 transition-all shadow-xl">
+                <h2 class="text-2xl font-black mb-2 text-white uppercase">Register</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Manually select a Builder and Droid for the next run.</p>
+            </a>
+
+            <!-- Diagnostics -->
+            <a href="/diagnostics" class="group bg-slate-900 border-l-4 border-sky-500 p-8 hover:bg-slate-800 transition-all shadow-xl">
+                <h2 class="text-2xl font-black mb-2 text-white uppercase">Diagnostics</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Monitor sensor health and MQTT broker connectivity.</p>
+            </a>
+
+            <!-- Today's Results -->
+            <a href="/today" class="group bg-slate-900 border-l-4 border-slate-500 p-8 hover:bg-slate-800 transition-all shadow-xl">
+                <h2 class="text-2xl font-black mb-2 text-white uppercase">Today's Runs</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">View results and performance for the current session.</p>
+            </a>
+
+            <!-- Full Results -->
+            <a href="/results" class="group bg-slate-900 border-l-4 border-slate-700 p-8 hover:bg-slate-800 transition-all shadow-xl">
+                <h2 class="text-2xl font-black mb-2 text-white uppercase">Full Results</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">Complete historical archive of every run on the course.</p>
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-24 pt-8 border-t border-slate-900 flex justify-between items-center text-slate-700 text-[10px] font-bold uppercase tracking-widest">
+            <span>System Version 2.0.0</span>
+            <div class="flex gap-8">
+                <span>Droid Builders UK</span>
+                <span>Driving Course System</span>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

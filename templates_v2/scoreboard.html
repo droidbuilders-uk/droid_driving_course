@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droid Course - Tactical Display</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @theme {
+            --font-hud: 'Orbitron', sans-serif;
+            --font-sans: 'Exo 2', sans-serif;
+        }
+        
+        .hud-border {
+            clip-path: polygon(0 0, 95% 0, 100% 15%, 100% 100%, 5% 100%, 0 85%);
+        }
+        
+        .timer-glow {
+            text-shadow: 0 0 20px rgba(45, 212, 191, 0.4);
+        }
+
+        @keyframes status-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.8); }
+        }
+        .status-pulse {
+            animation: status-pulse 2s infinite;
+        }
+
+        .scanline {
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.05) 50%);
+            background-size: 100% 4px;
+        }
+    </style>
+</head>
+<body class="bg-[#05070a] text-slate-100 min-h-screen font-sans antialiased overflow-hidden p-8 relative">
+    <!-- Top-Right System Status Panel -->
+    <div class="fixed top-4 right-4 z-50 flex items-center gap-3">
+        <!-- MQTT Status Alert (Flashing amber when offline) -->
+        <div id="mqtt-warning" class="bg-amber-600/90 border border-amber-500 text-white font-hud text-[9px] tracking-widest uppercase px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 hidden animate-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+            MQTT Offline
+        </div>
+        
+        <!-- WebSocket Uplink Status Alert (Flashing red when offline) -->
+        <div id="connection-warning" class="bg-rose-600/90 border border-rose-500 text-white font-hud text-[9px] tracking-widest uppercase px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 hidden animate-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+            Uplink Offline
+        </div>
+
+        <!-- Audio Unlock Button (Speaker icon: crossed out when locked, normal when unlocked) -->
+        <button id="audio-lock-btn" onclick="unlockAudio()" class="bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 p-2 rounded shadow-lg flex items-center justify-center transition-all cursor-pointer">
+            <svg id="audio-status-icon" class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+        </button>
+    </div>
+
+    <div class="h-full flex flex-col gap-4 relative z-10">
+        
+        <!-- Top Row: Contender & Global Status -->
+        <div class="flex flex-col gap-3">
+            <!-- Full Width Contender Card -->
+            <div class="bg-slate-900 border-l-4 border-teal-500 hud-border flex items-stretch shadow-2xl overflow-hidden relative h-[180px]">
+                <!-- Visuals -->
+                <div class="flex-none flex gap-4 p-5 border-r border-slate-800/50 bg-black/20">
+                    <div class="w-32 h-32 bg-black/50 border-2 border-slate-800 rounded-lg overflow-hidden flex items-center justify-center relative flex-none shadow-[0_0_20px_rgba(20,184,166,0.1)]">
+                        <img id="driver-image" src="" class="w-full h-full object-cover hidden">
+                        <div id="driver-placeholder" class="text-teal-500/20 font-hud text-[10px] tracking-widest uppercase text-center">No_Visual</div>
+                    </div>
+                    <div class="w-32 h-32 bg-black/50 border-2 border-slate-800 rounded-lg overflow-hidden flex items-center justify-center relative flex-none shadow-[0_0_20px_rgba(20,184,166,0.1)]">
+                        <img id="droid-image" src="" class="w-full h-full object-cover hidden">
+                        <div id="droid-placeholder" class="text-teal-500/20 font-hud text-[10px] tracking-widest uppercase text-center">No_Visual</div>
+                    </div>
+                </div>
+
+                <!-- Identity -->
+                <div class="flex-1 px-10 flex flex-col justify-center min-w-0 border-r border-slate-800/50">
+                    <div class="text-teal-500/40 font-hud text-[10px] tracking-[0.4em] mb-1 uppercase">Contender</div>
+                    <h2 id="driver-name" class="text-6xl font-black text-white uppercase tracking-tighter truncate leading-none">STANDBY</h2>
+                    <h3 id="droid-name" class="text-amber-500 font-hud text-xl tracking-[0.1em] uppercase mt-2 truncate">READY</h3>
+                </div>
+
+                <!-- Data Details -->
+                <div id="droid-details" class="w-64 flex-none p-8 flex flex-col justify-center gap-3 font-hud text-[10px] text-slate-500 tracking-[0.1em] uppercase bg-black/10">
+                    <div class="flex justify-between gap-4 border-b border-slate-800/50 pb-1">
+                        <span class="flex-none">Mass:</span> 
+                        <span class="text-slate-200 font-bold truncate text-right" id="detail-weight">--</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-slate-800/50 pb-1">
+                        <span class="flex-none">Hull:</span> 
+                        <span class="text-slate-200 font-bold truncate text-right" id="detail-material">--</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-slate-800/50 pb-1">
+                        <span class="flex-none">Comm:</span> 
+                        <span class="text-slate-200 font-bold truncate text-right" id="detail-controls">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Status Bar -->
+            <div id="run-status" class="h-12 bg-slate-900 border-l-4 border-slate-700 flex items-center px-12 transition-all duration-500 shadow-xl overflow-hidden">
+                <div class="text-[10px] font-hud text-slate-500 tracking-[0.5em] uppercase mr-auto">System_Status</div>
+                <span id="status-text" class="text-slate-400 font-hud text-lg tracking-[1em] uppercase">IDLE</span>
+                <div class="flex gap-2 ml-auto">
+                    <div class="w-2 h-2 rounded-full bg-slate-700 status-pulse"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-700 status-pulse" style="animation-delay: 0.2s"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-700 status-pulse" style="animation-delay: 0.4s"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Row: Telemetry & Gates -->
+        <div class="grid grid-cols-12 gap-4 flex-1 min-h-0">
+            <!-- Run Timer -->
+            <div class="col-span-4 bg-slate-900 border-t-4 border-teal-500 hud-border p-8 flex flex-col justify-between shadow-2xl relative">
+                <div class="scanline absolute inset-0 opacity-10 pointer-events-none"></div>
+                
+                <div>
+                    <h4 class="text-teal-500/40 font-hud text-[10px] tracking-[0.4em] mb-12 uppercase">Run Timer</h4>
+                    <div class="space-y-10">
+                        <div class="flex justify-between items-baseline">
+                            <span class="text-slate-500 font-hud text-[10px] tracking-widest">PHASE 01</span>
+                            <span id="time-first" class="text-4xl font-hud text-white tabular-nums">00:00.0</span>
+                        </div>
+                        <div class="flex justify-between items-baseline">
+                            <span class="text-slate-500 font-hud text-[10px] tracking-widest">PHASE 02</span>
+                            <span id="time-second" class="text-4xl font-hud text-white tabular-nums">00:00.0</span>
+                        </div>
+                        <div class="flex justify-between items-baseline py-6 border-t border-slate-800">
+                            <span class="text-rose-600 font-hud text-[10px] tracking-widest">PENALTIES</span>
+                            <span id="penalty-count" class="text-5xl font-hud text-rose-600 tabular-nums">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-10 border-t border-teal-500/30">
+                    <div class="text-teal-500/40 font-hud text-[10px] tracking-[0.4em] mb-4 uppercase">Final Time</div>
+                    <div id="time-final" class="text-7xl font-hud text-teal-400 timer-glow tabular-nums tracking-tight leading-none min-w-0">00:00.0</div>
+                </div>
+            </div>
+
+            <!-- Gate Grid -->
+            <div class="col-span-8 bg-slate-900 border-t-4 border-teal-500 hud-border p-10 shadow-2xl relative">
+                <div class="scanline absolute inset-0 opacity-10 pointer-events-none"></div>
+                <h4 class="text-teal-500/40 font-hud text-[10px] tracking-[0.4em] mb-12 uppercase">Gates</h4>
+                <div id="gate-grid" class="grid grid-cols-4 md:grid-cols-5 gap-6">
+                    <!-- Dynamic Gates -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Results -->
+        <div class="bg-slate-900 hud-border border-t-2 border-teal-500 p-6 shadow-2xl mt-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div class="text-teal-500/40 font-hud text-[10px] tracking-[0.4em] uppercase">Today's Standings</div>
+                <div class="text-[10px] font-hud text-slate-600 tracking-widest uppercase">Live_Leaderboard</div>
+            </div>
+            
+            <div id="results-podium" class="grid grid-cols-3 gap-6 mb-8">
+                <!-- Top 3 Hero Cards -->
+            </div>
+
+            <div class="border-t border-slate-800 pt-6">
+                <table class="w-full text-left font-hud text-[10px] tracking-widest uppercase text-slate-500">
+                    <thead>
+                        <tr class="border-b border-slate-800 pb-2">
+                            <th class="py-2 w-16">Rank</th>
+                            <th class="py-2">Droid / Builder</th>
+                            <th class="py-2 text-right">Time</th>
+                            <th class="py-2 text-right">Penalties</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body" class="text-slate-300">
+                        <!-- Positions 4+ -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Special Alert Overlay -->
+    <div id="special-overlay" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center border-[20px] border-amber-500/20">
+        <div class="text-amber-500 font-hud text-xl tracking-[1em] mb-12 animate-pulse">ALERT_EVENT_DETECTED</div>
+        <h1 id="special-text" class="text-[8rem] font-hud font-black text-white mb-12 tracking-tighter text-center uppercase leading-none"></h1>
+        <div id="special-content" class="relative">
+            <div class="absolute inset-0 bg-teal-500/20 blur-3xl rounded-full"></div>
+        </div>
+    </div>
+
+    <script>
+        function formatTime(ms) {
+            if (!ms) return "00:00.0";
+            const totalSeconds = ms / 1000;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            const tenths = Math.floor((ms % 1000) / 100);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${tenths}`;
+        }
+
+        function fitText(el, maxFontSize) {
+            let fontSize = maxFontSize;
+            el.style.fontSize = fontSize + 'px';
+            while (el.scrollHeight > el.offsetHeight || el.scrollWidth > el.offsetWidth && fontSize > 10) {
+                fontSize -= 2;
+                el.style.fontSize = fontSize + 'px';
+            }
+        }
+
+        let audioUnlocked = false;
+        const audioCache = {};
+
+        function playSound(soundName) {
+            if (!audioUnlocked) return;
+            console.log("Playing sound via browser:", soundName);
+            try {
+                let audio = audioCache[soundName];
+                if (!audio) {
+                    audio = new Audio(`/sounds/${soundName}.mp3`);
+                    audioCache[soundName] = audio;
+                }
+                audio.currentTime = 0;
+                audio.play().catch(e => {
+                    console.warn("Audio playback failed:", e);
+                });
+            } catch (e) {
+                console.error("Audio trigger error:", e);
+            }
+        }
+
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            // Play silent buffer to unlock web audio context on user action
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const buffer = ctx.createBuffer(1, 1, 22050);
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(ctx.destination);
+                source.start(0);
+            } catch (e) {
+                console.warn("Silent unlock buffer failed:", e);
+            }
+            audioUnlocked = true;
+            
+            // Replace with unmuted speaker SVG
+            document.getElementById('audio-lock-btn').innerHTML = `
+                <svg id="audio-status-icon" class="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+            `;
+            console.log("Audio Context unlocked by user click.");
+            playSound("woop_woop");
+        }
+
+        document.body.addEventListener('click', () => {
+            if (!audioUnlocked) unlockAudio();
+        });
+
+        let ws;
+        function connectWS() {
+            ws = new WebSocket(`ws://${window.location.host}/ws/comms`);
+            
+            ws.onopen = () => {
+                console.log("HUD Uplink Established");
+                document.getElementById('connection-warning').classList.add('hidden');
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                console.log("HUD Update Received:", msg.event);
+                if (msg.event === 'reload_contender') reloadContender();
+                if (msg.event === 'reload_current') reloadCurrent();
+                if (msg.event === 'reload_gates') reloadGates();
+                if (msg.event === 'reload_results') reloadResults();
+                if (msg.event === 'reload_all') location.reload();
+                if (msg.event === 'special_display') showSpecial(msg.data.data);
+                if (msg.event === 'play_sound') playSound(msg.data.sound);
+            };
+            
+            ws.onclose = () => {
+                console.log("HUD Uplink Lost - Reconnecting...");
+                document.getElementById('connection-warning').classList.remove('hidden');
+                setTimeout(connectWS, 2000);
+            };
+        }
+
+        async function checkMqtt() {
+            try {
+                const res = await fetch('/display/mqtt_stats');
+                const data = await res.json();
+                const warningEl = document.getElementById('mqtt-warning');
+                if (data.broker_connected) {
+                    warningEl.classList.add('hidden');
+                } else {
+                    warningEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("Failed to fetch MQTT status:", e);
+            }
+        }
+
+        let num_gates = 0;
+
+        async function initGates() {
+            const response = await fetch('/display/list_gates');
+            const data = await response.json();
+            num_gates = data.length;
+            const grid = document.getElementById('gate-grid');
+            grid.innerHTML = data.map(gate => `
+                <div id="gate${gate.id}" class="p-6 bg-black/40 border border-teal-500/20 rounded flex flex-col justify-center transition-all">
+                    <div class="text-[8px] font-hud text-teal-500/50 tracking-widest mb-2 uppercase">SEC_${gate.id.toString().padStart(2, '0')}</div>
+                    <div class="font-hud text-slate-300 text-xs truncate tracking-tighter">${gate.name.toUpperCase()}</div>
+                </div>
+            `).join('');
+        }
+
+        function fitText(el, maxFontSize) {
+            let size = maxFontSize;
+            el.style.fontSize = size + 'px';
+            el.style.whiteSpace = 'nowrap';
+            
+            // Step down font size until it fits the container width
+            while (el.scrollWidth > el.clientWidth && size > 16) {
+                size -= 2;
+                el.style.fontSize = size + 'px';
+            }
+        }
+
+        let lastMemberUid = null;
+        let lastDroidUid = null;
+
+        async function reloadContender() {
+            const response = await fetch('/display/contender');
+            const data = await response.json();
+            
+            if (data.member_uid === lastMemberUid && data.droid_uid === lastDroidUid) return;
+            
+            lastMemberUid = data.member_uid;
+            lastDroidUid = data.droid_uid;
+
+            const nameEl = document.getElementById('driver-name');
+            nameEl.textContent = (data.member || 'STANDBY').toUpperCase();
+            fitText(nameEl, 60);
+
+            document.getElementById('droid-name').textContent = (data.droid || 'READY').toUpperCase();
+            document.getElementById('detail-weight').textContent = data.weight || '--';
+            document.getElementById('detail-material').textContent = data.material || '--';
+            
+            let comms = data.transmitter_type || '--';
+            // Shorten common long strings for tactical UI
+            comms = comms.replace('Bluetooth (PS3) to Raspberry Pi', 'BT (PS3) > RPi');
+            comms = comms.replace('2.4ghz RC transmitter', '2.4GHz RC');
+            document.getElementById('detail-controls').textContent = comms;
+
+            const dImg = document.getElementById('driver-image');
+            const dPlc = document.getElementById('driver-placeholder');
+            const rImg = document.getElementById('droid-image');
+            const rPlc = document.getElementById('droid-placeholder');
+            
+            // Handle Builder Image
+            dImg.onload = () => {
+                dImg.classList.remove('hidden');
+                dPlc.classList.add('hidden');
+            };
+            dImg.onerror = () => {
+                dImg.src = '/static/defaults/builder.png';
+                dImg.classList.remove('hidden');
+                dPlc.classList.add('hidden');
+            };
+            dImg.src = (data.member_uid && data.member_uid !== 0) ? `/static/members/${data.member_uid}.jpg` : '/static/defaults/builder.png';
+
+            // Handle Droid Image
+            rImg.onload = () => {
+                rImg.classList.remove('hidden');
+                rPlc.classList.add('hidden');
+            };
+            rImg.onerror = () => {
+                rImg.src = '/static/defaults/droid.png';
+                rImg.classList.remove('hidden');
+                rPlc.classList.add('hidden');
+            };
+            rImg.src = (data.droid_uid && data.droid_uid !== 0) ? `/static/droids/${data.droid_uid}.jpg` : '/static/defaults/droid.png';
+        }
+
+        async function reloadCurrent() {
+            const response = await fetch('/display/current');
+            const data = await response.json();
+            const statusEl = document.getElementById('run-status');
+            const statusTxt = document.getElementById('status-text');
+            const pulses = statusEl.querySelectorAll('.status-pulse');
+            
+            if (data.final_time) {
+                statusTxt.textContent = "COURSE COMPLETE";
+                statusTxt.className = "text-amber-500 font-hud text-lg tracking-[1em] uppercase";
+                statusEl.className = "h-12 bg-amber-950/30 border-l-4 border-amber-500 flex items-center px-12 transition-all duration-500 shadow-xl overflow-hidden";
+                pulses.forEach(p => p.className = "w-2 h-2 rounded-full bg-amber-500 status-pulse");
+            } else if (data.start) {
+                statusTxt.textContent = "RUN ACTIVE";
+                statusTxt.className = "text-teal-400 font-hud text-lg tracking-[1em] uppercase animate-pulse";
+                statusEl.className = "h-12 bg-teal-950/30 border-l-4 border-teal-500 flex items-center px-12 transition-all duration-500 shadow-xl overflow-hidden";
+                pulses.forEach(p => p.className = "w-2 h-2 rounded-full bg-teal-500 status-pulse");
+            } else {
+                statusTxt.textContent = "SYSTEM IDLE";
+                statusTxt.className = "text-slate-500 font-hud text-lg tracking-[1em] uppercase";
+                statusEl.className = "h-12 bg-slate-900 border-l-4 border-slate-700 flex items-center px-12 transition-all duration-500 shadow-xl overflow-hidden";
+                pulses.forEach(p => p.className = "w-2 h-2 rounded-full bg-slate-700 status-pulse");
+            }
+
+            const formatTime = (ms) => ms ? new Date(ms).toISOString().substr(14, 8) : "00:00.0";
+            document.getElementById('time-first').textContent = formatTime(data.first_half_time);
+            document.getElementById('time-second').textContent = formatTime(data.second_half_time);
+            document.getElementById('penalty-count').textContent = data.num_penalties || 0;
+            const finalEl = document.getElementById('time-final');
+            finalEl.textContent = formatTime(data.final_time || data.clock_time);
+            fitText(finalEl, 72);
+        }
+
+        async function reloadGates() {
+            const response = await fetch('/display/current_gates');
+            const data = await response.json();
+            const gateStates = data[0];
+            
+            for (let i = 1; i <= num_gates; i++) {
+                const el = document.getElementById(`gate${i}`);
+                if (!el) continue;
+                const state = gateStates[i]; // Now returns 'FAIL', 'PASS', or '0'
+                const name = el.children[1].textContent.toUpperCase();
+                const isBump = name.includes('BUMP');
+
+                if (state === "FAIL") {
+                    el.className = "p-6 bg-rose-600 border-2 border-rose-400 rounded flex flex-col justify-center shadow-[0_0_20px_rgba(225,29,72,0.4)] scale-105 z-10";
+                    el.children[1].className = "font-hud text-white text-xs truncate tracking-tighter";
+                } else if (state === "PASS") {
+                    el.className = "p-6 bg-emerald-600 border-2 border-emerald-400 rounded flex flex-col justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105 z-10";
+                    el.children[1].className = "font-hud text-white text-xs truncate tracking-tighter";
+                } else {
+                    // Reset to default
+                    el.className = `p-6 transition-all rounded flex flex-col justify-center ${isBump ? 'bg-black/40 border-2 border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.05)]' : 'bg-black/20 border border-slate-900'}`;
+                    el.children[1].className = "font-hud text-slate-300 text-xs truncate tracking-tighter";
+                }
+            }
+        }
+
+        async function reloadResults() {
+            const response = await fetch('/display/today');
+            const data = await response.json();
+            
+            // 1. Fill the Podium (Top 3)
+            const podium = document.getElementById('results-podium');
+            const top3 = data.slice(0, 3);
+            
+            const metalColors = [
+                'border-amber-400 text-amber-400', // 1st
+                'border-slate-300 text-slate-300', // 2nd
+                'border-orange-500 text-orange-500' // 3rd
+            ];
+
+            podium.innerHTML = top3.map((run, i) => `
+                <div class="bg-black/40 border-l-4 ${metalColors[i]} p-4 flex justify-between items-center relative overflow-hidden group">
+                    <div class="absolute -right-4 -top-4 text-4xl font-black opacity-5 group-hover:opacity-10 transition-opacity">0${i+1}</div>
+                    <div>
+                        <div class="text-[8px] text-slate-500 font-bold uppercase mb-1">POS_0${i+1}</div>
+                        <div class="text-sm font-black text-white uppercase">${run.droid}</div>
+                        <div class="text-[10px] text-teal-500/60 uppercase">${run.member}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xl font-black text-white tabular-nums">${formatTime(run.final_time)}</div>
+                        <div class="text-[8px] text-rose-500 uppercase">${run.num_penalties} HITS</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 2. Fill the Standings Table (4+)
+            const tableBody = document.getElementById('results-table-body');
+            const others = data.slice(3, 10); // Show next 7
+            
+            tableBody.innerHTML = others.map((run, i) => `
+                <tr class="border-b border-slate-800/50 hover:bg-white/5 transition-colors group">
+                    <td class="py-3 font-bold text-slate-600">0${i+4}</td>
+                    <td class="py-3">
+                        <span class="text-white font-bold group-hover:text-teal-400 transition-colors">${run.droid}</span>
+                        <span class="mx-2 text-slate-600">/</span>
+                        <span class="text-slate-500 text-[8px]">${run.member}</span>
+                    </td>
+                    <td class="py-3 text-right font-mono text-white">${formatTime(run.final_time)}</td>
+                    <td class="py-3 text-right text-rose-500/50 font-bold">${run.num_penalties}</td>
+                </tr>
+            `).join('');
+        }
+
+        function showSpecial(type) {
+            const overlay = document.getElementById('special-overlay');
+            const text = document.getElementById('special-text');
+            const content = document.getElementById('special-content');
+            overlay.classList.remove('hidden');
+            text.textContent = type.toUpperCase().replace('_', ' ');
+            if (type === 'toprun') {
+                content.innerHTML = `<img src="/static/images/toprun/${Math.floor(Math.random()*3)+1}.gif" class="h-96 rounded-lg border-2 border-teal-500">`;
+            }
+            setTimeout(() => { overlay.classList.add('hidden'); }, 8000);
+        }
+
+        initGates(); reloadContender(); reloadCurrent(); reloadResults();
+        connectWS();
+        checkMqtt();
+        setInterval(checkMqtt, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostics - Droid Control V2</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @theme {
+            --font-sans: 'Exo 2', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#05070a] text-slate-100 min-h-screen font-sans antialiased p-8 md:p-12">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12 pb-6 border-b border-slate-900">
+            <div>
+                <a href="/" class="text-teal-500 font-bold text-xs tracking-widest uppercase mb-4 block hover:translate-x-1 transition-transform">← Back to Dashboard</a>
+                <h1 class="text-4xl font-black text-white uppercase tracking-tight">System Diagnostics</h1>
+            </div>
+            <div id="mqtt-badge" class="bg-slate-900 px-6 py-3 border-l-4 border-slate-700 flex items-center gap-4 shadow-lg">
+                <span class="w-2 h-2 rounded-full bg-slate-700"></span>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">MQTT Status: Checking...</span>
+            </div>
+        </header>
+
+        <!-- Main Status Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Sensor List -->
+            <div class="lg:col-span-8">
+                <div class="bg-slate-900 p-8 shadow-xl border border-slate-800 h-full">
+                    <h2 class="text-lg font-black text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-4 flex justify-between items-center">
+                        MQTT Sensor Network
+                        <div class="flex gap-2">
+                            <button onclick="flushGateState()" class="text-[10px] bg-amber-600/20 text-amber-500 px-3 py-1 rounded border border-amber-500/30 hover:bg-amber-600 hover:text-white transition-colors">Flush Idle State</button>
+                            <button onclick="resetMQTT()" class="text-[10px] bg-rose-600/20 text-rose-500 px-3 py-1 rounded border border-rose-500/30 hover:bg-rose-600 hover:text-white transition-colors">Clear MQTT History</button>
+                        </div>
+                    </h2>
+                    <div id="sensor-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Detailed Sensor cards -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Race Simulator -->
+            <div class="lg:col-span-4">
+                <div class="bg-slate-900 p-8 shadow-xl border border-teal-500/30 h-full">
+                    <h2 class="text-lg font-black text-teal-400 uppercase tracking-widest mb-8 border-b border-slate-800 pb-4 flex justify-between items-center">
+                        Simulator
+                        <button onclick="resetSimulator()" class="text-[10px] bg-rose-600/20 text-rose-500 px-3 py-1 rounded hover:bg-rose-600 hover:text-white transition-colors">Reset Run</button>
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 gap-2 mb-8">
+                        <button id="btn-start" onclick="runCmd('START')" class="p-3 bg-teal-600/20 border border-teal-500 rounded text-teal-400 font-bold hover:bg-teal-500 hover:text-white transition-all uppercase text-[10px] tracking-widest">1. Start Phase 1</button>
+                        <button id="btn-mid-wait" onclick="runCmd('MIDDLE_WAIT')" class="p-3 bg-slate-800 border border-slate-700 rounded text-slate-500 font-bold hover:bg-slate-700 hover:text-white transition-all uppercase text-[10px] tracking-widest">2. Midpoint Pause</button>
+                        <button id="btn-mid-start" onclick="runCmd('MIDDLE_START')" class="p-3 bg-slate-800 border border-slate-700 rounded text-slate-500 font-bold hover:bg-slate-700 hover:text-white transition-all uppercase text-[10px] tracking-widest">3. Start Phase 2</button>
+                        <button id="btn-finish" onclick="runCmd('FINISH')" class="p-3 bg-slate-800 border border-slate-700 rounded text-slate-500 font-bold hover:bg-slate-700 hover:text-white transition-all uppercase text-[10px] tracking-widest">4. Finish Race</button>
+                    </div>
+
+                    <div id="simulator-grid" class="grid grid-cols-1 gap-2">
+                        <!-- Dynamic Simulator Buttons -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Logs -->
+        <div class="mt-8 bg-slate-900 p-8 shadow-xl border border-slate-800">
+            <h2 class="text-lg font-black text-white uppercase tracking-widest mb-4 border-b border-slate-800 pb-4">Real-time Activity Log</h2>
+            <div id="system-log" class="p-6 bg-black/60 rounded font-mono text-xs text-slate-400 leading-relaxed h-48 overflow-y-auto space-y-2">
+                <div class="text-teal-500/50">[SYSTEM] Simulator Ready. Course: Figure-8 Config.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let raceStartTime = 0;
+        let phase2StartTime = 0;
+        let phase1Duration = 0;
+
+        function log(msg, color = 'slate-400') {
+            const container = document.getElementById('system-log');
+            const entry = document.createElement('div');
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="text-slate-600">[${time}]</span> <span class="text-${color}">${msg}</span>`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function runCmd(cmd) {
+            let ms = 0;
+            const now = Date.now();
+
+            if (cmd === 'START') {
+                raceStartTime = now;
+                log('RACE STARTED. Phase 1 timing active.', 'teal-400');
+                updateBtnStyles('btn-start');
+            } else if (cmd === 'MIDDLE_WAIT') {
+                ms = now - raceStartTime;
+                phase1Duration = ms;
+                log(`MIDPOINT REACHED. Phase 1 Time: ${(ms/1000).toFixed(2)}s`, 'amber-400');
+                updateBtnStyles('btn-mid-wait');
+            } else if (cmd === 'MIDDLE_START') {
+                phase2StartTime = now;
+                log('PHASE 2 STARTED. Timing resumed.', 'teal-400');
+                updateBtnStyles('btn-mid-start');
+            } else if (cmd === 'FINISH') {
+                const phase2Duration = now - phase2StartTime;
+                ms = phase1Duration + phase2Duration;
+                log(`RACE FINISHED. Total Time: ${(ms/1000).toFixed(2)}s`, 'emerald-500');
+                updateBtnStyles('btn-finish');
+            }
+
+            await fetch(`/admin/course_command/${cmd}?ms=${ms}`);
+        }
+
+        function updateBtnStyles(activeId) {
+            const btns = ['btn-start', 'btn-mid-wait', 'btn-mid-start', 'btn-finish'];
+            btns.forEach(id => {
+                const el = document.getElementById(id);
+                if (id === activeId) {
+                    el.className = el.className.replace('bg-slate-800', 'bg-teal-600').replace('text-slate-500', 'text-white').replace('border-slate-700', 'border-teal-400');
+                } else {
+                    // Reset others slightly
+                }
+            });
+        }
+
+        async function triggerGate(id, value) {
+            log(`Simulating Gate ${id} Trigger (Value: ${value})...`, 'teal-400');
+            try {
+                const response = await fetch(`/mqtt/simulate/${id}/${value}`);
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    log(`Gate ${id} trigger acknowledged by server.`, 'emerald-500');
+                }
+            } catch (e) {
+                log(`Failed to trigger gate ${id}: ${e.message}`, 'rose-500');
+            }
+        }
+
+        async function resetSimulator() {
+            log('Sending Course Reset command...', 'rose-400');
+            await fetch('/admin/reset');
+            log('Course session cleared.', 'emerald-500');
+        }
+
+        async function initSimulator() {
+            const response = await fetch('/display/list_gates');
+            const gates = await response.json();
+            const grid = document.getElementById('simulator-grid');
+            
+            grid.innerHTML = gates.map(gate => {
+                const isBump = gate.name.toUpperCase().includes('BUMP');
+                if (isBump) {
+                    return `
+                        <div class="bg-black/30 border border-slate-800 p-4 flex justify-between items-center">
+                            <div>
+                                <div class="text-[10px] text-slate-600 font-bold uppercase mb-1">SEC_${gate.id.toString().padStart(2, '0')}</div>
+                                <div class="text-sm font-black text-white uppercase">${gate.name}</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="triggerGate(${gate.id}, 2)" class="px-4 py-2 bg-emerald-600/20 border border-emerald-500/50 text-emerald-500 text-[10px] font-bold rounded hover:bg-emerald-600 hover:text-white transition-all">PASS</button>
+                                <button onclick="triggerGate(${gate.id}, 1)" class="px-4 py-2 bg-rose-600/20 border border-rose-500/50 text-rose-500 text-[10px] font-bold rounded hover:bg-rose-600 hover:text-white transition-all">FAIL</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="bg-black/30 border border-slate-800 p-4 flex justify-between items-center">
+                            <div>
+                                <div class="text-[10px] text-slate-600 font-bold uppercase mb-1">SEC_${gate.id.toString().padStart(2, '0')}</div>
+                                <div class="text-sm font-black text-white uppercase">${gate.name}</div>
+                            </div>
+                            <button onclick="triggerGate(${gate.id}, 1)" class="px-6 py-2 bg-rose-600/20 border border-rose-500/50 text-rose-500 text-[10px] font-bold rounded hover:bg-rose-600 hover:text-white transition-all">TRIGGER HIT</button>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        async function resetMQTT() {
+            if(!confirm("Clear MQTT sensor history?")) return;
+            await fetch('/admin/mqtt_reset');
+            log('MQTT Sensor history cleared.', 'rose-500');
+        }
+
+        async function flushGateState() {
+            await fetch('/admin/flush_gates');
+            log('Database idle state purged. Gates reset.', 'amber-500');
+        }
+
+        async function upgradeFirmware(ip, type) {
+            if (!confirm(`Trigger OTA firmware upgrade for sensor at ${ip} (${type.toUpperCase()})?`)) return;
+            log(`Triggering OTA update for ${ip}...`, 'amber-400');
+            try {
+                const res = await fetch(`/admin/ota_upgrade?ip=${ip}&type=${type}`);
+                const data = await res.json();
+                log(`OTA Job started: ${data.message}`, 'teal-400');
+            } catch (e) {
+                log(`Failed to initiate OTA: ${e.message}`, 'rose-500');
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const response = await fetch('/display/mqtt_stats');
+                const data = await response.json();
+                
+                const badge = document.getElementById('mqtt-badge');
+                if (data.broker_connected) {
+                    badge.className = "bg-slate-900 px-6 py-3 border-l-4 border-teal-500 flex items-center gap-4 shadow-lg";
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-teal-500"></span><span class="text-xs font-bold text-white uppercase tracking-widest">MQTT Status: Connected</span>`;
+                } else {
+                    badge.className = "bg-slate-900 px-6 py-3 border-l-4 border-rose-500 flex items-center gap-4 shadow-lg";
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span><span class="text-xs font-bold text-rose-500 uppercase tracking-widest">MQTT Status: Disconnected</span>`;
+                }
+
+                const latestVer = data.latest_version || "2.0.0";
+                const grid = document.getElementById('sensor-grid');
+                grid.innerHTML = Object.entries(data.sensors).map(([id, info]) => {
+                    const lastSeen = Math.floor((Date.now() - info.last_seen * 1000) / 1000);
+                    const isOnline = lastSeen < 30;
+                    const needsUpgrade = isOnline && info.version !== latestVer && info.ip;
+                    return `
+                    <div class="bg-black/30 border border-slate-800 p-4 flex flex-col gap-3">
+                        <div class="flex justify-between items-center">
+                            <div class="text-[10px] text-teal-500 font-bold uppercase tracking-widest">SENSOR_${id.padStart(2, '0')}</div>
+                            <div class="flex items-center gap-2">
+                                ${needsUpgrade ? `<button onclick="upgradeFirmware('${info.ip}', '${info.type}')" class="text-[9px] bg-amber-600/30 text-amber-500 border border-amber-500/40 px-2 py-0.5 rounded hover:bg-amber-500 hover:text-black font-bold animate-pulse">UPGRADE</button>` : ''}
+                                <div class="w-2 h-2 rounded-full ${isOnline ? 'bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.5)]' : 'bg-slate-800'}"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="text-[10px] text-slate-500 uppercase">IP: <span class="text-slate-300 font-mono">${info.ip || '---'}</span></div>
+                            <div class="text-[10px] text-slate-500 uppercase">Signal: <span class="${info.rssi > -70 ? 'text-emerald-500' : 'text-rose-500'} font-mono">${info.rssi || '---'} dBm</span></div>
+                            <div class="text-[10px] text-slate-500 uppercase">Battery: <span class="text-amber-500 font-mono">${info.battery || '---'}V</span></div>
+                            <div class="text-[10px] text-slate-500 uppercase">Version: <span class="text-slate-300 font-mono">${info.version || '---'}</span></div>
+                            <div class="text-[10px] text-slate-500 uppercase">Type: <span class="text-teal-400 font-hud">${info.type || '---'}</span></div>
+                            <div class="text-[10px] text-slate-500 uppercase col-span-2">Last: <span class="text-slate-400 font-mono">${lastSeen}s ago</span></div>
+                        </div>
+                    </div>
+                `}).join('');
+
+            } catch (e) {}
+        }
+
+        function connectWS() {
+            const ws = new WebSocket(`ws://${window.location.host}/ws/comms`);
+            ws.onopen = () => console.log("Diag Uplink Established");
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'reload_all') location.reload();
+            };
+            ws.onclose = () => setTimeout(connectWS, 2000);
+        }
+
+        initSimulator();
+        setInterval(updateStats, 2000);
+        updateStats();
+        connectWS();
+    </script>
+</body>
+</html>

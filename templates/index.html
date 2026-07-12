@@ -1,9 +1,172 @@
-<!doctype html>
-<h1>Welcome to R2D2 REST API.</h1>
-<dl>
-  {% for path, docstr in urls|dictsort(false, 'key') %}
-  <dt><a href="{{ path }}">{{ path }}</a></dt>
-  <dd><pre>{{ docstr }}</pre></dd>
-  {% endfor %}
-</dl>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droid Driving Course Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-indigo: #6366f1;
+        }
 
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: radial-gradient(circle at top right, #1e1b4b, var(--bg-color));
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 900px;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 600;
+            margin: 0;
+            background: linear-gradient(to right, var(--accent-blue), var(--accent-indigo));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .nav-card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            text-decoration: none;
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-card:hover {
+            transform: translateY(-8px);
+            background: rgba(30, 41, 59, 0.8);
+            border-color: var(--accent-blue);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        .nav-card h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent-blue);
+        }
+
+        .nav-card p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        .api-list {
+            margin-top: 5rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .api-list h3 {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1.5rem;
+        }
+
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .api-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            transition: background 0.2s;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .api-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>Droid Control</h1>
+            <p class="subtitle">Obstacle Course Management System</p>
+        </header>
+
+        <div class="nav-grid">
+            <a href="/scoreboard" class="nav-card">
+                <h2>Scoreboard</h2>
+                <p>Public display of current rankings and top scores.</p>
+            </a>
+            <a href="/admin" class="nav-card">
+                <h2>Admin Console</h2>
+                <p>Configure courses, manage users, and control displays.</p>
+            </a>
+            <a href="/diagnostics" class="nav-card">
+                <h2>Diagnostics</h2>
+                <p>Real-time sensor health, connectivity, and battery status.</p>
+            </a>
+            <a href="/results" class="nav-card">
+                <h2>Results History</h2>
+                <p>Detailed breakdown of all runs and penalties recorded.</p>
+            </a>
+        </div>
+
+        <div class="api-list">
+            <h3>System Endpoints</h3>
+            <div class="api-grid">
+                {% for path, docstr in urls|dictsort(false, 'key') %}
+                <a href="{{ path }}" class="api-link" title="{{ docstr }}">{{ path }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

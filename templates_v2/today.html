@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Today's Results - Droid Control V2</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @theme {
+            --font-sans: 'Exo 2', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-[#05070a] text-slate-100 min-h-screen font-sans antialiased p-8 md:p-12">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12 pb-6 border-b border-slate-900">
+            <div>
+                <a href="/" class="text-teal-500 font-bold text-xs tracking-widest uppercase mb-4 block hover:translate-x-1 transition-transform">← Back to Dashboard</a>
+                <h1 class="text-4xl font-black text-white uppercase tracking-tight">Today's Results</h1>
+            </div>
+            <div class="text-slate-500 font-bold text-xs uppercase tracking-widest pb-1">
+                Current Session
+            </div>
+        </header>
+
+        <!-- Results Table -->
+        <div class="bg-slate-900 shadow-xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-950 border-b border-slate-800">
+                        <th class="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rank</th>
+                        <th class="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Builder</th>
+                        <th class="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Droid</th>
+                        <th class="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Corrected Time</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body">
+                    <!-- Data injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function loadToday() {
+            const res = await fetch('/display/today');
+            const data = await res.json();
+            const body = document.getElementById('results-body');
+            
+            body.innerHTML = data.map((run, index) => `
+                <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                    <td class="p-6">
+                        <span class="text-2xl font-black italic text-slate-800">#${index + 1}</span>
+                    </td>
+                    <td class="p-6">
+                        <div class="font-black text-white uppercase tracking-tight">${run.member}</div>
+                    </td>
+                    <td class="p-6">
+                        <div class="font-bold text-amber-500 uppercase text-sm">${run.droid}</div>
+                    </td>
+                    <td class="p-6 text-right">
+                        <div class="text-2xl font-black text-teal-400 font-mono tracking-tighter">
+                            ${(run.final_time / 1000).toFixed(2)}s
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        loadToday();
+        setInterval(loadToday, 5000);
+    </script>
+</body>
+</html>

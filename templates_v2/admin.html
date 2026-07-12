@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Droid Control V2</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @theme {
+            --font-sans: 'Exo 2', sans-serif;
+        }
+        .btn-action { @apply bg-slate-800 border-2 border-slate-700 p-6 font-black uppercase tracking-wider text-white hover:bg-teal-500 hover:border-teal-400 hover:text-black transition-all flex items-center justify-center gap-4 text-sm; }
+        .btn-danger { @apply bg-slate-800 border-2 border-slate-700 p-6 font-black uppercase tracking-wider text-white hover:bg-rose-600 hover:border-rose-500 transition-all flex items-center justify-center gap-4 text-sm; }
+    </style>
+</head>
+<body class="bg-[#05070a] text-slate-100 min-h-screen font-sans antialiased p-8 md:p-12">
+    <!-- Top-Right System Status Panel -->
+    <div class="fixed top-4 right-4 z-50 flex items-center gap-3">
+        <!-- MQTT Status Alert (Flashing amber when offline) -->
+        <div id="mqtt-warning" class="bg-amber-600/90 border border-amber-500 text-white font-hud text-[9px] tracking-widest uppercase px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 hidden animate-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+            MQTT Offline
+        </div>
+        
+        <!-- WebSocket Uplink Status Alert (Flashing red when offline) -->
+        <div id="connection-warning" class="bg-rose-600/90 border border-rose-500 text-white font-hud text-[9px] tracking-widest uppercase px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 hidden animate-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+            Uplink Offline
+        </div>
+
+        <!-- Audio Unlock Button (Speaker icon: crossed out when locked, normal when unlocked) -->
+        <button id="audio-lock-btn" onclick="unlockAudio()" class="bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 p-2 rounded shadow-lg flex items-center justify-center transition-all cursor-pointer">
+            <svg id="audio-status-icon" class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+        </button>
+    </div>
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12 pb-6 border-b border-slate-900">
+            <div>
+                <a href="/" class="text-teal-500 font-bold text-xs tracking-widest uppercase mb-4 block hover:translate-x-1 transition-transform">← Back to Dashboard</a>
+                <h1 class="text-4xl font-black text-white uppercase">Admin Console</h1>
+            </div>
+            <div id="course-status" class="bg-slate-900 px-6 py-3 border-l-4 border-amber-500 flex items-center gap-4 shadow-lg">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span class="text-xs font-bold text-amber-500 uppercase tracking-widest">Status: Standby</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- System Management -->
+            <div class="lg:col-span-8 space-y-8">
+                <!-- Contender Selection & Entry -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Builder Section -->
+                    <div class="bg-slate-900 p-8 shadow-xl border border-slate-800">
+                        <h2 class="text-lg font-black text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-4">Manual Builder Entry</h2>
+                        <div class="flex gap-2">
+                            <input type="text" id="manual-builder" placeholder="Builder Name" class="flex-1 bg-slate-800 border-2 border-slate-700 p-4 text-white placeholder:text-slate-600 font-bold outline-none focus:border-teal-500 uppercase text-xs">
+                            <button onclick="addBuilder()" class="btn-action !p-4">Add</button>
+                        </div>
+                    </div>
+
+                    <!-- Droid Section -->
+                    <div class="bg-slate-900 p-8 shadow-xl border border-slate-800">
+                        <h2 class="text-lg font-black text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-4">Manual Droid Entry</h2>
+                        <div class="flex gap-2">
+                            <input type="text" id="manual-droid" placeholder="Droid Name" class="flex-1 bg-slate-800 border-2 border-slate-700 p-4 text-white placeholder:text-slate-600 font-bold outline-none focus:border-teal-500 uppercase text-xs">
+                            <button onclick="addDroid()" class="btn-action !p-4">Add</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-8 shadow-xl border border-slate-800">
+                    <h2 class="text-lg font-black text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-4">System Management</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <button onclick="refreshAll()" class="btn-danger">
+                            Full Data Refresh
+                        </button>
+                        <button onclick="uploadRuns()" class="btn-action">
+                            Upload to Portal
+                        </button>
+                        <button onclick="clearDB()" class="btn-danger">
+                            Clear Session Data
+                        </button>
+                        <select id="course-select" onchange="changeCourse(this.value)" class="bg-slate-800 border-2 border-slate-700 p-4 font-bold text-white outline-none focus:border-teal-500 uppercase tracking-widest text-xs">
+                            <option value="">-- Change Course --</option>
+                        </select>
+                        <button onclick="resetSession()" class="btn-danger">
+                            Reset All Displays
+                        </button>
+                        <a href="/results" class="btn-action text-center">
+                            View All Results
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Run Info -->
+            <div class="lg:col-span-4 space-y-8">
+                <div class="bg-slate-900 p-8 shadow-xl border border-slate-800">
+                    <h2 class="text-lg font-black text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-4">Current Contender</h2>
+                    <div id="contender-info" class="space-y-6">
+                        <!-- Identity Photos -->
+                        <div class="flex gap-4">
+                            <div class="w-24 h-24 bg-black/60 border border-slate-800 rounded flex items-center justify-center relative overflow-hidden flex-none">
+                                <img id="driver-image" src="" class="w-full h-full object-cover hidden">
+                                <div id="driver-placeholder" class="text-slate-800 font-bold text-[8px] uppercase text-center">No_Visual</div>
+                            </div>
+                            <div class="w-24 h-24 bg-black/60 border border-slate-800 rounded flex items-center justify-center relative overflow-hidden flex-none">
+                                <img id="droid-image" src="" class="w-full h-full object-cover hidden">
+                                <div id="droid-placeholder" class="text-slate-800 font-bold text-[8px] uppercase text-center">No_Visual</div>
+                            </div>
+                        </div>
+
+                        <div class="p-6 bg-black/40 rounded border border-slate-800/50">
+                            <div class="text-xs text-slate-500 font-bold uppercase mb-1">Builder</div>
+                            <div id="driver-name" class="text-2xl font-black text-white uppercase mb-4">---</div>
+                            
+                            <div class="text-xs text-slate-500 font-bold uppercase mb-1">Droid</div>
+                            <div id="droid-name" class="text-xl font-bold text-amber-500 uppercase">---</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function triggerRun(cmd, ms) {
+            await fetch(`/run/${cmd}/${ms}`);
+        }
+        async function specialDisplay(type) {
+            await fetch(`/admin/display/${type}`);
+        }
+        async function clearDB() {
+            if(confirm("DANGER: This will wipe all race results. Confirm?")) {
+                const res = await fetch('/admin/clear_db');
+                if (res.ok) alert("Database Wiped.");
+            }
+        }
+        async function refreshAll() {
+            if(confirm("DANGER: This will clear all local members/droids and re-download from portal. Confirm?")) {
+                const btn = event.target;
+                btn.textContent = "Syncing...";
+                btn.disabled = true;
+                const res = await fetch('/admin/refresh/all');
+                btn.textContent = "Full Data Refresh";
+                btn.disabled = false;
+                if (res.ok) alert("Data Sync Complete.");
+            }
+        }
+        async function addBuilder() {
+            const name = document.getElementById('manual-builder').value;
+            if(!name) return alert("Enter builder name");
+            const res = await fetch(`/admin/add_builder?name=${encodeURIComponent(name)}`);
+            if(res.ok) {
+                document.getElementById('manual-builder').value = '';
+                updateContender();
+            }
+        }
+
+        async function addDroid() {
+            const name = document.getElementById('manual-droid').value;
+            if(!name) return alert("Enter droid name");
+            const res = await fetch(`/admin/add_droid?name=${encodeURIComponent(name)}`);
+            if(res.ok) {
+                document.getElementById('manual-droid').value = '';
+                updateContender();
+            }
+        }
+        async function uploadRuns() {
+            const res = await fetch('/admin/upload/runs');
+            const data = await res.json();
+            alert(`Successfully uploaded ${data.uploaded} runs to portal.`);
+        }
+        async function changeCourse(type) {
+            if(!type) return;
+            if(confirm(`Switch course mode to ${type.toUpperCase()}?`)) {
+                await fetch(`/admin/change_course/${type}`);
+                alert("Course Changed. Displays Reloading...");
+            }
+        }
+        async function resetSession() {
+            if(confirm("Force reset session and reload all displays?")) {
+                await fetch('/admin/reset');
+            }
+        }
+        let lastMemberUid = null;
+        let lastDroidUid = null;
+
+        async function updateContender() {
+            const res = await fetch('/display/contender');
+            const data = await res.json();
+            
+            if (data.member_uid === lastMemberUid && data.droid_uid === lastDroidUid) return;
+            
+            lastMemberUid = data.member_uid;
+            lastDroidUid = data.droid_uid;
+
+            document.getElementById('driver-name').textContent = data.member || "None Selected";
+            document.getElementById('droid-name').textContent = data.droid || "Waiting...";
+            
+            const driverImg = document.getElementById('driver-image');
+            const droidImg = document.getElementById('droid-image');
+            const driverPlc = document.getElementById('driver-placeholder');
+            const droidPlc = document.getElementById('droid-placeholder');
+
+            if (driverImg && driverPlc) {
+                driverImg.onload = () => { driverImg.classList.remove('hidden'); driverPlc.classList.add('hidden'); };
+                driverImg.onerror = () => { driverImg.src = '/static/defaults/builder.png'; driverImg.classList.remove('hidden'); driverPlc.classList.add('hidden'); };
+                driverImg.src = (data.member_uid && data.member_uid !== 0) ? `/static/members/${data.member_uid}.jpg` : '/static/defaults/builder.png';
+            }
+
+            if (droidImg && droidPlc) {
+                droidImg.onload = () => { droidImg.classList.remove('hidden'); droidPlc.classList.add('hidden'); };
+                droidImg.onerror = () => { droidImg.src = '/static/defaults/droid.png'; droidImg.classList.remove('hidden'); droidPlc.classList.add('hidden'); };
+                droidImg.src = (data.droid_uid && data.droid_uid !== 0) ? `/static/droids/${data.droid_uid}.jpg` : '/static/defaults/droid.png';
+            }
+        }
+        let audioUnlocked = false;
+        const audioCache = {};
+
+        function playSound(soundName) {
+            if (!audioUnlocked) return;
+            console.log("Playing sound via browser:", soundName);
+            try {
+                let audio = audioCache[soundName];
+                if (!audio) {
+                    audio = new Audio(`/sounds/${soundName}.mp3`);
+                    audioCache[soundName] = audio;
+                }
+                audio.currentTime = 0;
+                audio.play().catch(e => {
+                    console.warn("Audio playback failed:", e);
+                });
+            } catch (e) {
+                console.error("Audio trigger error:", e);
+            }
+        }
+
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const buffer = ctx.createBuffer(1, 1, 22050);
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(ctx.destination);
+                source.start(0);
+            } catch (e) {
+                console.warn("Silent unlock buffer failed:", e);
+            }
+            audioUnlocked = true;
+            
+            // Replace with unmuted speaker SVG
+            document.getElementById('audio-lock-btn').innerHTML = `
+                <svg id="audio-status-icon" class="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+            `;
+            console.log("Audio Context unlocked by user click.");
+            playSound("woop_woop");
+        }
+
+        document.body.addEventListener('click', () => {
+            if (!audioUnlocked) unlockAudio();
+        });
+
+        let ws;
+        function connectWS() {
+            ws = new WebSocket(`ws://${window.location.host}/ws/comms`);
+            
+            ws.onopen = () => {
+                console.log("HUD Uplink Established");
+                document.getElementById('connection-warning').classList.add('hidden');
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'reload_all') location.reload();
+                if (msg.event === 'play_sound') playSound(msg.data.sound);
+            };
+            
+            ws.onclose = () => {
+                console.log("HUD Uplink Lost - Reconnecting...");
+                document.getElementById('connection-warning').classList.remove('hidden');
+                setTimeout(connectWS, 2000);
+            };
+        }
+
+        async function checkMqtt() {
+            try {
+                const res = await fetch('/display/mqtt_stats');
+                const data = await res.json();
+                const warningEl = document.getElementById('mqtt-warning');
+                if (data.broker_connected) {
+                    warningEl.classList.add('hidden');
+                } else {
+                    warningEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("Failed to fetch MQTT status:", e);
+            }
+        }
+
+        async function initCourses() {
+            const res = await fetch('/admin/list_courses');
+            const data = await res.json();
+            const select = document.getElementById('course-select');
+            
+            const currentRes = await fetch('/admin/current_course');
+            const currentData = await currentRes.json();
+            
+            select.innerHTML = '<option value="">-- Change Course --</option>' + 
+                data.courses.map(c => `<option value="${c}" ${c === currentData.type ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('');
+        }
+
+        setInterval(updateContender, 2000);
+        updateContender();
+        initCourses();
+        connectWS();
+        checkMqtt();
+        setInterval(checkMqtt, 5000);
+    </script>
+</body>
+</html>

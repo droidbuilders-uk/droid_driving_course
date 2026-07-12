@@ -14,6 +14,12 @@ SoftwareSerial softSerial(/*rx =*/10, /*tx =*/4);
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <PubSubClient.h>
+
+ADC_MODE(ADC_VCC);
+
+const char firmware_version[] = "2.0.0";
+const char sensor_type[] = "bump";
 
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
@@ -111,6 +117,7 @@ void setup() {
      matrix.show();
   }
   Udp.begin(localPort);
+  client_mqtt.setServer(mqtt_server, 1883);
 
   ArduinoOTA.setHostname(sensor_name);
   ArduinoOTA.onStart([]() {
@@ -201,15 +208,72 @@ void pulseLights() {
 
 WiFiClient client;
 HTTPClient http;
+PubSubClient client_mqtt(client);
+
+unsigned long lastReconnectAttempt = 0;
+unsigned long lastHeartbeat = 0;
+
+boolean reconnect() {
+  char clientId[30];
+  sprintf(clientId, "ESP8266Client-%02d", address);
+  if (client_mqtt.connect(clientId)) {
+    Serial.println("MQTT Connected");
+  }
+  return client_mqtt.connected();
+}
+
+void send_heartbeat() {
+  if (!client_mqtt.connected()) return;
+  
+  char topic[50];
+  sprintf(topic, "droid_course/%d/heartbeat", address);
+  
+  float vcc = ESP.getVcc() / 1024.0;
+  long rssi = WiFi.RSSI();
+  
+  char payload[160];
+  sprintf(payload, "{\"ip\":\"%s\",\"rssi\":%ld,\"battery\":%.2f,\"version\":\"%s\",\"type\":\"%s\"}", WiFi.localIP().toString().c_str(), rssi, vcc, firmware_version, sensor_type);
+  
+  client_mqtt.publish(topic, payload);
+  Serial.print("MQTT Heartbeat: ");
+  Serial.println(payload);
+}
 
 void loop() {
   ArduinoOTA.handle();
+
+  if (!client_mqtt.connected()) {
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      if (reconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+  } else {
+    client_mqtt.loop();
+  }
+
+  unsigned long now = millis();
+  if (now - lastHeartbeat > 10000) {
+    lastHeartbeat = now;
+    send_heartbeat();
+  }
+
   int pass = digitalRead(INPUT_PASS_PIN);
   int fail = digitalRead(INPUT_FAIL_PIN);
+  
   if (pass == LOW) {
      Serial.println("Pass hit");
      myDFPlayer.play(2);
      passLights();
+     
+     if (client_mqtt.connected()) {
+        char topic[50];
+        sprintf(topic, "droid_course/%d/gate", address);
+        client_mqtt.publish(topic, "{\"value\":\"PASS\"}");
+     }
+     
      delay(lighttime);
      offLights();
   } 
@@ -232,18 +296,12 @@ void loop() {
   if (packetSize == 8 && strncmp(packetBuffer, "volume", 6) == 0) {
     // Check if the 7th and 8th characters are digits
     if (isdigit(packetBuffer[6]) && isdigit(packetBuffer[7])) {
-      // The message is in the format 'volumeXX'
-      // Extract the two-digit number
       char numStr[3];
       numStr[0] = packetBuffer[6];
       numStr[1] = packetBuffer[7];
-      numStr[2] = '\0'; // Null-terminate the string
+      numStr[2] = '\0';
       
-      int volume = atoi(numStr); // Convert the string to an integer
-      
-      // Now you can use the 'volume' variable for your programming
-      // For example:
-      // set_volume(volume);
+      int volume = atoi(numStr);
       
       Serial.print("Received volume command: ");
       Serial.println(volume);
@@ -251,20 +309,29 @@ void loop() {
     }
   }
 
-  
   if (fail == LOW) {
      Serial.println("Fail hit");
      myDFPlayer.play(3);
      failLights();
-     String api_call = String((char*)api) + "gate/" + address + "/FAIL";
-     Serial.print("API Call: ");
-     Serial.println(api_call);
-     http.begin(client, api_call);
-     int httpCode = http.GET();
-     http.end();
+     
+     bool sent_mqtt = false;
+     if (client_mqtt.connected()) {
+        char topic[50];
+        sprintf(topic, "droid_course/%d/gate", address);
+        sent_mqtt = client_mqtt.publish(topic, "{\"value\":\"FAIL\"}");
+     }
+     
+     if (!sent_mqtt) {
+        String api_call = String((char*)api) + "gate/" + address + "/FAIL";
+        Serial.print("API Fallback Call: ");
+        Serial.println(api_call);
+        http.begin(client, api_call);
+        int httpCode = http.GET();
+        http.end();
+     }
+     
      delay(lighttime);
      offLights();
   }
   delay(10);
-
 }

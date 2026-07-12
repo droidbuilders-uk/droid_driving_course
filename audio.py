@@ -12,12 +12,23 @@ import time
 class AudioLibrary(object):
 
     def __init__(self, sounds_dir, volume):
+        self.audio_available = False
         if __debug__:
             print("Initiating audio")
-        mixer.init()
-        mixer.music.set_volume(float(volume))
+        try:
+            mixer.init()
+            mixer.music.set_volume(float(volume))
+            self.audio_available = True
+        except Exception as e:
+            print(f"WARNING: Audio mixer could not be initialized: {e}")
+            print("Server will run without local audio support.")
 
     def TriggerSound(self, data):
+        if not self.audio_available:
+            if __debug__:
+                print("MOCK AUDIO: Playing %s" % data)
+            return
+            
         if __debug__:
             print("Playing %s" % data)
         audio_file = "./sounds/" + data + ".mp3"
@@ -38,10 +49,15 @@ class AudioLibrary(object):
         return files
 
     def ShowVolume(self):
+        if not self.audio_available:
+            return "0.0 (Audio Disabled)"
         cur_vol = str(mixer.music.get_volume())
         return cur_vol
 
     def SetVolume(self, level):
+        if not self.audio_available:
+            return "Ok (Audio Disabled)"
+            
         if level == "up":
             if __debug__:
                 print("Increasing volume")
@@ -60,4 +76,3 @@ class AudioLibrary(object):
             print("Setting volume to: %s" % new_level)
         mixer.music.set_volume(float(new_level))
         return "Ok"
-

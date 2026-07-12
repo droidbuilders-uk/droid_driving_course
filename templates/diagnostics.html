@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droid Course Diagnostics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin: 0;
+            background: linear-gradient(to right, var(--accent-blue), #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--accent-green);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: currentColor;
+            border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .sensor-id {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .last-seen {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .rssi-good { color: var(--accent-green); }
+        .rssi-fair { color: var(--accent-orange); }
+        .rssi-poor { color: var(--accent-red); }
+
+        .loading {
+            text-align: center;
+            padding: 5rem;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .updating {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>System Diagnostics</h1>
+                <p style="color: var(--text-secondary); margin-top: 0.5rem;">Real-time sensor monitoring & health</p>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                Live Monitoring
+            </div>
+        </header>
+
+        <div id="sensor-grid" class="grid">
+            <div class="loading">Searching for sensors...</div>
+        </div>
+    </div>
+
+    <script>
+        function updateDiagnostics() {
+            fetch('/display/mqtt_stats')
+                .then(response => response.json())
+                .then(data => {
+                    const grid = document.getElementById('sensor-grid');
+                    if (Object.keys(data).length === 0) {
+                        grid.innerHTML = '<div class="loading">No sensors detected yet. Ensure they are broadcasting heartbeats via MQTT.</div>';
+                        return;
+                    }
+
+                    grid.innerHTML = '';
+                    for (const [id, stats] of Object.entries(data)) {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        
+                        const rssiClass = stats.rssi > -60 ? 'rssi-good' : (stats.rssi > -80 ? 'rssi-fair' : 'rssi-poor');
+                        const lastSeen = new Date(stats.last_seen * 1000).toLocaleTimeString();
+                        const timeAgo = Math.round(Date.now()/1000 - stats.last_seen);
+
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <div>
+                                    <div class="sensor-id">${id}</div>
+                                    <div class="last-seen">Last seen: ${lastSeen} (${timeAgo}s ago)</div>
+                                </div>
+                                <div class="status-dot" style="color: ${timeAgo < 60 ? 'var(--accent-green)' : 'var(--accent-red)'}"></div>
+                            </div>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-label">IP Address</span>
+                                    <span class="stat-value">${stats.ip || 'N/A'}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Signal (RSSI)</span>
+                                    <span class="stat-value ${rssiClass}">${stats.rssi || 'N/A'} dBm</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Battery</span>
+                                    <span class="stat-value">${stats.battery ? stats.battery + '%' : 'N/A'}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Status</span>
+                                    <span class="stat-value" style="color: ${timeAgo < 60 ? 'var(--accent-green)' : 'var(--accent-red)'}">
+                                        ${timeAgo < 60 ? 'Online' : 'Offline'}
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching diagnostics:', err);
+                });
+        }
+
+        // Update every 2 seconds
+        setInterval(updateDiagnostics, 2000);
+        updateDiagnostics();
+    </script>
+</body>
+</html>
