@@ -76,7 +76,7 @@ void setup() {
   Serial.println(address);
 
   FPSerial.begin(9600);
-  myDFPlayer.begin(FPSerial);
+  myDFPlayer.begin(FPSerial, false, false); // false for isACK to prevent infinite loop bug
   Serial.println(F("DFPlayer Mini online."));
   myDFPlayer.volume(20);  //Set volume value. From 0 to 30
   myDFPlayer.play(1);  //Play the first mp3
