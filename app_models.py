@@ -69,6 +69,7 @@ class Penalty(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     run_id = Column(Integer, ForeignKey("runs.id"), nullable=False)
     gate_id = Column(Integer, ForeignKey("gates.id"), nullable=False)
+    status = Column(String, default="FAIL")
     
     run = relationship("Run", back_populates="penalties")
 
@@ -110,6 +111,7 @@ class MemberSchema(MemberBase):
 class PenaltySchema(BaseModel):
     gate_id: int
     timestamp: datetime
+    status: str = "FAIL"
     if HAS_PYDANTIC_V2:
         model_config = ConfigDict(from_attributes=True)
     else:
