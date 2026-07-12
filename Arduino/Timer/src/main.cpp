@@ -98,6 +98,43 @@ int clock_flash_state = LOW;
 
 WiFiUDP Udp;
 WiFiMulti WiFiMulti;
+
+#include <PubSubClient.h>
+
+const char firmware_version[] = "1.5.2";
+const char sensor_type[] = "timer";
+
+WiFiClient espClient;
+PubSubClient client_mqtt(espClient);
+
+unsigned long lastReconnectAttempt = 0;
+unsigned long lastHeartbeat = 0;
+
+boolean reconnect() {
+  char clientId[30];
+  sprintf(clientId, "ESP32Client-Timer");
+  if (client_mqtt.connect(clientId)) {
+    Serial.println("MQTT Connected");
+  }
+  return client_mqtt.connected();
+}
+
+void send_heartbeat() {
+  if (!client_mqtt.connected()) return;
+  
+  char topic[50];
+  sprintf(topic, "droid_course/timer/heartbeat");
+  
+  float vcc = 0.0;
+  long rssi = WiFi.RSSI();
+  
+  char payload[160];
+  sprintf(payload, "{\"ip\":\"%s\",\"rssi\":%ld,\"battery\":%.2f,\"version\":\"%s\",\"type\":\"%s\"}", WiFi.localIP().toString().c_str(), rssi, vcc, firmware_version, sensor_type);
+  
+  client_mqtt.publish(topic, payload);
+  Serial.print("MQTT Heartbeat: ");
+  Serial.println(payload);
+}
 HTTPClient http;
 
 // Function Prototypes
@@ -217,6 +254,7 @@ void setup() {
 #endif
   }
     http.setReuse(true);
+  client_mqtt.setServer(mqtt_server, 1883);
   Udp.begin(localPort);
 
   ArduinoOTA.setHostname("timer");
@@ -244,7 +282,25 @@ void setup() {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-void loop() {   
+void loop() {
+  if (!client_mqtt.connected()) {
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      if (reconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+  } else {
+    client_mqtt.loop();
+  }
+
+  unsigned long now = millis();
+  if (now - lastHeartbeat > 10000) {
+    lastHeartbeat = now;
+    send_heartbeat();
+  }
+   
   for (int i=0; i < NUM_BUTTONS; i++) {
     buttons[i].update();
   }
@@ -713,6 +769,19 @@ void setMatrixMessage(String msg, int r, int g, int b) {
 }
 
 void updateMatrixText() {
+  int textPixelWidth = matrixText.length() * 6; // Average 6 pixels per character width
+
+  // If text fits on screen, center it and don't scroll
+  if (textPixelWidth <= matrix.width()) {
+    matrix.fillScreen(0);
+    int center_x = (matrix.width() - textPixelWidth) / 2;
+    if (center_x < 0) center_x = 0;
+    matrix.setCursor(center_x, 0);
+    matrix.print(matrixText);
+    matrix.show();
+    return;
+  }
+
   unsigned long currentMillis = millis();
   if (currentMillis - lastMatrixUpdate >= 50) { // scroll speed
     lastMatrixUpdate = currentMillis;
@@ -723,8 +792,7 @@ void updateMatrixText() {
     
     matrixTextX--;
     // Reset position if text scrolled past screen
-    // Average 6 pixels per character width
-    if (matrixTextX < (int)(matrixText.length() * -6)) {
+    if (matrixTextX < -textPixelWidth) {
       matrixTextX = matrix.width();
     }
   }
