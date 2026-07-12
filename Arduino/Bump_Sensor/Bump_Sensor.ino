@@ -39,6 +39,9 @@ char  ReplyBuffer[] = "acknowledged\r\n";       // a string to send back
 
 WiFiUDP Udp;
 ESP8266WiFiMulti WiFiMulti;
+WiFiClient client;
+HTTPClient http;
+PubSubClient client_mqtt(client);
 
 Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(3, 3, LED_PIN,
   NEO_MATRIX_TOP     + NEO_MATRIX_LEFT +
@@ -206,9 +209,7 @@ void pulseLights() {
   }
 }
 
-WiFiClient client;
-HTTPClient http;
-PubSubClient client_mqtt(client);
+// Network clients moved above setup()
 
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastHeartbeat = 0;
@@ -327,6 +328,8 @@ void loop() {
         Serial.println(api_call);
         http.begin(client, api_call);
         int httpCode = http.GET();
+        Serial.print("HTTP Response code: ");
+        Serial.println(httpCode);
         http.end();
      }
      
