@@ -23,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("R2Fast")
 
 db_v2.init_db()
+import database
+database.db_init()
 
 app = FastAPI(title="R2 Droid Course - FastAPI Edition")
 
@@ -287,6 +289,8 @@ async def upload_runs(db: Session = Depends(db_v2.get_db)):
 @app.get("/admin/change_course/{course_type}")
 async def change_course(course_type: str, db: Session = Depends(db_v2.get_db)):
     db_v2.set_config(db, 'course_type', course_type)
+    import database
+    database.load_gates()
     await manager.emit('reload_all', {}, namespace='/comms')
     return {"status": "ok", "type": course_type}
 

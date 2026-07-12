@@ -101,10 +101,7 @@ def set_config(setting, value):
         conn.commit()
 
 def load_gates():
-    course_type = get_config('course_type')
-    if not course_type:
-        logger.error("No course_type configured")
-        return
+    course_type = get_config('course_type') or 'default'
 
     gates_csv = f"course/{course_type}/sensors.csv"
     try:

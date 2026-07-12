@@ -73,7 +73,7 @@ class Penalty(Base):
     run = relationship("Run", back_populates="penalties")
 
 class Config(Base):
-    __tablename__ = "course_config"
+    __tablename__ = "course"
     config_name = Column(String, primary_key=True)
     config_value = Column(String)
 
