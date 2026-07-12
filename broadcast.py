@@ -13,19 +13,32 @@ class BroadCaster(object):
         super(BroadCaster, self).__init__()
         self.enabled = False
         try:
-            # Try to get local IP, fallback to 127.0.0.1 if it fails
-            try:
-                self.IPADDRESS = socket.gethostbyname(socket.gethostname() + ".local")
-            except:
-                # Fallback: get IP by connecting to a public address (doesn't actually connect)
+            import fcntl
+            import struct
+            def get_ip_address(ifname):
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                return socket.inet_ntoa(fcntl.ioctl(
+                    s.fileno(),
+                    0x8915,  # SIOCGIFADDR
+                    struct.pack('256s', bytes(ifname[:15], 'utf-8'))
+                )[20:24])
+
+            # Try wlan1 (Hotspot) first, then wlan0, then fallback
+            try:
+                self.IPADDRESS = get_ip_address('wlan1')
+            except:
                 try:
-                    s.connect(("8.8.8.8", 80))
-                    self.IPADDRESS = s.getsockname()[0]
+                    self.IPADDRESS = get_ip_address('wlan0')
                 except:
-                    self.IPADDRESS = "127.0.0.1"
-                finally:
-                    s.close()
+                    # Fallback: get IP by connecting to a public address
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    try:
+                        s.connect(("8.8.8.8", 80))
+                        self.IPADDRESS = s.getsockname()[0]
+                    except:
+                        self.IPADDRESS = "127.0.0.1"
+                    finally:
+                        s.close()
 
             self.UDP_IP = socket.inet_ntoa(socket.inet_aton(self.IPADDRESS)[:3] + b'\xff' )
             self.UDP_PORT = 8888
