@@ -18,7 +18,7 @@ SoftwareSerial softSerial(/*rx =*/10, /*tx =*/4);
 
 ADC_MODE(ADC_VCC);
 
-const char firmware_version[] = "2.0.0";
+const char firmware_version[] = "2.0.1";
 const char sensor_type[] = "bump";
 
 DFRobotDFPlayerMini myDFPlayer;
