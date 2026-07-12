@@ -168,7 +168,7 @@ def display(cmd: str, db: Session = Depends(db_v2.get_db)):
         return {
             "sensors": mqtt.get_diagnostics(),
             "broker_connected": mqtt.client.is_connected() if mqtt.client else False,
-            "latest_version": "2.0.0"
+            "latest_version": "2.0.1"
         }
     return {"status": "ok"}
 

@@ -219,7 +219,7 @@
                     badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span><span class="text-xs font-bold text-rose-500 uppercase tracking-widest">MQTT Status: Disconnected</span>`;
                 }
 
-                const latestVer = data.latest_version || "2.0.0";
+                const latestVer = data.latest_version || "2.0.1";
                 const grid = document.getElementById('sensor-grid');
                 grid.innerHTML = Object.entries(data.sensors).map(([id, info]) => {
                     const lastSeen = Math.floor((Date.now() - info.last_seen * 1000) / 1000);
