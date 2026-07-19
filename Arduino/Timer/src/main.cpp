@@ -101,7 +101,7 @@ WiFiMulti WiFiMulti;
 
 #include <PubSubClient.h>
 
-const char firmware_version[] = "1.5.2";
+const char firmware_version[] = "1.5.3";
 const char sensor_type[] = "timer";
 
 WiFiClient espClient;

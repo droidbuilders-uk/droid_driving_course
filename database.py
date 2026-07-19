@@ -133,7 +133,7 @@ def run(current, cmd, member_id, droid_id, milliseconds):
     with get_db() as conn:
         cursor = conn.cursor()
         if cmd == 'START':
-            cursor.execute("INSERT INTO runs (droid_uid, member_uid) VALUES (?, ?)", (droid_id, member_id))
+            cursor.execute("INSERT INTO runs (droid_uid, member_uid, start) VALUES (?, ?, CURRENT_TIMESTAMP)", (droid_id, member_id))
             run_id = cursor.lastrowid
             cursor.execute("DELETE FROM penalties WHERE run_id = ?", (run_id,))
             conn.commit()
@@ -287,6 +287,8 @@ def list_results(today_only=False):
             # rename for compatibility
             data['member'] = data.pop('member_name') or "Unknown Builder"
             data['droid'] = data.pop('droid_name') or "Unknown Droid"
+            start_str = data.get('start')
+            data['date'] = start_str.split(' ')[0] if start_str else '---'
             data['penalties'], data['num_penalties'] = list_penalties(run_row['id'])
             results.append(data)
     return json.dumps(results)

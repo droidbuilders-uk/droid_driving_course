@@ -66,15 +66,26 @@ manager = ConnectionManager()
 
 # Mock socketio for CourseSession
 class SocketIOWrapper:
+    def __init__(self):
+        self.main_loop = None
+
     def emit(self, event, data, namespace='/comms'):
         import asyncio
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(manager.emit(event, data, namespace))
-        except RuntimeError:
-            pass
+        if self.main_loop:
+            asyncio.run_coroutine_threadsafe(manager.emit(event, data, namespace), self.main_loop)
+        else:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(manager.emit(event, data, namespace))
+            except RuntimeError:
+                pass
 
 session_wrapper = SocketIOWrapper()
+
+@app.on_event("startup")
+async def capture_main_loop():
+    import asyncio
+    session_wrapper.main_loop = asyncio.get_running_loop()
 course_session = CourseSession(session_wrapper, broadcaster, audio_lib)
 mqtt.set_session(course_session)
 mqtt.start()
@@ -199,19 +210,19 @@ async def register_member(did: str):
     return {"status": "ok"}
 
 @app.get("/gate/{gid}/{value}")
-def gate_trigger(gid: int, value: str):
-    course_session.handle_gate_trigger(gid, value)
+async def gate_trigger(gid: int, value: str):
+    course_session.handle_gate_trigger(gid, value.upper())
     return {"status": "ok"}
 
 @app.get("/run/{cmd}/{ms}")
-def run_command(cmd: str, ms: int):
+async def run_command_get(cmd: str, ms: int):
     course_session.handle_run_command(cmd, ms)
     return {"status": "ok"}
 
 # --- Admin Actions ---
 
 @app.get("/admin/display/{cmd}")
-def special_display(cmd: str):
+async def special_display(cmd: str):
     import asyncio
     try:
         loop = asyncio.get_running_loop()

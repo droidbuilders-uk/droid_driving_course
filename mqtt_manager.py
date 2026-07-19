@@ -55,7 +55,11 @@ class MQTTManager:
                 sensor_id = topic.split('/')[-2]
                 value = payload.get("value")
                 if self.session:
-                    self.session.handle_gate_trigger(sensor_id, value)
+                    try:
+                        gate_id = int(sensor_id)
+                        self.session.handle_gate_trigger(gate_id, value.upper())
+                    except ValueError:
+                        self.logger.warning(f"Invalid gate ID received via MQTT: {sensor_id}")
                     
             # Run command via MQTT (e.g. from timer)
             elif "/run" in topic:

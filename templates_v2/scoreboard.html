@@ -191,6 +191,9 @@
             <div class="absolute inset-0 bg-teal-500/20 blur-3xl rounded-full"></div>
         </div>
     </div>
+    
+    <!-- Hidden div to force Tailwind compiler to generate dynamic classes -->
+    <div class="hidden bg-rose-600 border-rose-400 shadow-xl shadow-rose-500/50 bg-emerald-600 border-emerald-400 shadow-emerald-500/50 scale-105 z-10 text-white border-2"></div>
 
     <script>
         function formatTime(ms) {
@@ -433,14 +436,14 @@
                 const isBump = name.includes('BUMP');
 
                 if (state === "FAIL") {
-                    el.className = "p-6 bg-rose-600 border-2 border-rose-400 rounded flex flex-col justify-center shadow-[0_0_20px_rgba(225,29,72,0.4)] scale-105 z-10";
+                    el.className = "p-6 bg-rose-600 border-2 border-rose-400 rounded flex flex-col justify-center shadow-xl shadow-rose-500/50 scale-105 z-10 transition-all";
                     el.children[1].className = "font-hud text-white text-xs truncate tracking-tighter";
                 } else if (state === "PASS") {
-                    el.className = "p-6 bg-emerald-600 border-2 border-emerald-400 rounded flex flex-col justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105 z-10";
+                    el.className = "p-6 bg-emerald-600 border-2 border-emerald-400 rounded flex flex-col justify-center shadow-xl shadow-emerald-500/50 scale-105 z-10 transition-all";
                     el.children[1].className = "font-hud text-white text-xs truncate tracking-tighter";
                 } else {
                     // Reset to default
-                    el.className = `p-6 transition-all rounded flex flex-col justify-center ${isBump ? 'bg-black/40 border-2 border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.05)]' : 'bg-black/20 border border-slate-900'}`;
+                    el.className = `p-6 transition-all rounded flex flex-col justify-center ${isBump ? 'bg-black/40 border-2 border-teal-500/30 shadow-lg shadow-teal-500/10' : 'bg-black/20 border border-slate-900'}`;
                     el.children[1].className = "font-hud text-slate-300 text-xs truncate tracking-tighter";
                 }
             }

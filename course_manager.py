@@ -169,8 +169,14 @@ class CourseSession:
             self.socketio.emit('my_response', {'data': '**** PINBALL DROID ****'}, namespace='/comms')
             special_msg = "PINBALL DROID"
             
+        final_time_s = run_details.get("final_time", 0) / 1000.0
+        num_pens = run_details.get("num_penalties", 0)
+        display_msg = f"Time: {final_time_s:.2f}s Pens: {num_pens}"
+        
         if special_msg:
-            self.broadcast.broadcast_message(f"msg:{special_msg}".encode('utf-8'))
+            display_msg += f" - {special_msg}"
+            
+        self.broadcast.broadcast_message(f"msg:{display_msg}".encode('utf-8'))
             
         self._emit_reload(['results'])
 
