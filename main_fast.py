@@ -462,6 +462,16 @@ def clear_db():
     database.clear_db("all")
     return {"status": "ok"}
 
+@app.get("/admin/shutdown")
+def shutdown_system(background_tasks: BackgroundTasks):
+    def delayed_shutdown():
+        import time
+        time.sleep(1)
+        subprocess.run(["sudo", "shutdown", "-h", "now"])
+
+    background_tasks.add_task(delayed_shutdown)
+    return {"status": "ok", "message": "System shutdown initiated."}
+
 # --- WebSockets ---
 
 @app.websocket("/ws/comms")
