@@ -69,7 +69,7 @@ unsigned long lastMatrixUpdate = 0;
 #define DIGITS 5
 #define FLASHINTERVAL 500
 
-#define RESETPIN 2
+#define RESETPIN 26
 #define STARTPIN 4
 #define PAUSEPIN 5
 #define RESUMEPIN 19
@@ -101,7 +101,7 @@ WiFiMulti WiFiMulti;
 
 #include <PubSubClient.h>
 
-const char firmware_version[] = "1.5.3";
+const char firmware_version[] = "1.5.4";
 const char sensor_type[] = "timer";
 
 WiFiClient espClient;
