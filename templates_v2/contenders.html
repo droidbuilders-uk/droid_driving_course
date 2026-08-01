@@ -122,10 +122,16 @@
         function renderDroids(filter = '') {
             const list = document.getElementById('droid-list');
             list.innerHTML = droids
-                .filter(d => d.droid_name.toLowerCase().includes(filter.toLowerCase()))
+                .filter(d => 
+                    d.droid_name.toLowerCase().includes(filter.toLowerCase()) || 
+                    (d.member_name && d.member_name.toLowerCase().includes(filter.toLowerCase()))
+                )
                 .map(d => `
                     <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                        <td class="p-4 font-black text-amber-500 uppercase text-sm">${d.droid_name}</td>
+                        <td class="p-4">
+                            <div class="font-black text-amber-500 uppercase text-sm">${d.droid_name}</div>
+                            <div class="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-widest">${d.member_name || 'Unknown'}</div>
+                        </td>
                         <td class="p-4 text-right">
                             <button onclick="register('droid', '${d.droid_uid}')" class="reg-btn">Select</button>
                         </td>

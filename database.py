@@ -157,7 +157,7 @@ def run(current, cmd, member_id, droid_id, milliseconds):
                 SELECT SUM(g.penalty) as total_penalty 
                 FROM penalties p 
                 JOIN gates g ON p.gate_id = g.id 
-                WHERE p.run_id = ?
+                WHERE p.run_id = ? AND p.status = 'FAIL'
             """, (current,))
             penalty_row = cursor.fetchone()
             penalty_seconds = penalty_row['total_penalty'] if penalty_row['total_penalty'] else 0
